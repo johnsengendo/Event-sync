@@ -25,12 +25,6 @@ Each method is tested on time-series input data (e.g., packets per second) to de
 - 🔁 **Synchronization Cost**: Number of synchronization events triggered
 - ⚖️ **Trade-Off Analysis**: Balancing accuracy and update frequency
 
-## 💡 Why This Matters
-
-In the context of 5G/6G networks and emerging **Digital Twin** technologies, keeping virtual replicas accurately synchronized with real-world network conditions is essential. However, frequent updates can be resource-intensive.
-
-This project explores **which synchronization strategy best supports this balance**, guiding future integration in NDT systems.
-
 
 ## 📈 Example Outcome (Preview)
 

@@ -16,7 +16,7 @@ To evaluate and compare various techniques for event-based synchronization, incl
 Each method is tested on time-series input data (e.g., packets per second) to determine its effectiveness in:
 
 - Maintaining low prediction error (MAE, RMSE)
-- Reducing unnecessary synchronization events
+- Number of synchronization events
 - Supporting reliable updates in Network Digital Twins
 
 ## 🧪 Evaluation Focus
@@ -25,10 +25,9 @@ Each method is tested on time-series input data (e.g., packets per second) to de
 - 🔁 **Synchronization Cost**: Number of synchronization events triggered
 - ⚖️ **Trade-Off Analysis**: Balancing accuracy and update frequency
 
-
 ## 📈 Example Outcome (Preview)
 
-After running the simulations, you will obtain:
+After running the simulations, we will obtain:
 
 - Performance comparison plots
 - Synchronization count charts

@@ -58,16 +58,9 @@ The repository is organized as follows:
 
 The figure below shows the performance comparison across different synchronization techniques using MAE and RMSE metrics.
 
-![Figure 2: MAE and RMSE Comparison](results/mae_rmse_plot.png)
+![Figure 2: MAE and RMSE Comparison](Results/performance_comparison.png)
 
 ---
-
-## 🧠 How to run the experiment
-
-To reproduce the evaluation and run the simulations, use the Python script:
-
-```bash
-python sync.py
 
 ## 🧠 How to run the experiment
 

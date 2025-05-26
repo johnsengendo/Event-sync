@@ -15,7 +15,7 @@ To evaluate and compare the performance of the following synchronization techniq
 - 📡 **Kalman Filter-based Synchronization**
 - 🎮 **Reinforcement Learning-based Synchronization** (e.g., PPO, SAC)
 
-Each method is applied to time-series input data—such as *packets per second*—to assess its effectiveness in:
+Each method is applied to time-series input data such as *packets per second*—to assess its effectiveness in:
 
 - Maintaining low prediction error  
 - Reducing the number of synchronization events  
@@ -39,7 +39,7 @@ Each method is applied to time-series input data—such as *packets per second*�
 
 ## 📊 Sample Network Traffic Behavior
 
-A visual sample of the captured time-series traffic data is shown below. The figure illustrates how the network traffic varies in an event-driven manner—typically falling to zero after specific events, and showing distinct patterns, including triplet-triggered behaviors in the observed scenario.
+A visual sample of the captured time-series traffic data is shown below. The figure illustrates how the network traffic varies in an event-driven manner typically falling to zero after specific events, and showing distinct patterns, including triplet-triggered behaviors in the observed scenario.
 
 ![Figure 1: Sample variation in captured network traffic](events.png)
 

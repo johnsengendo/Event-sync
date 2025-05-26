@@ -49,8 +49,8 @@ A visual sample of the captured time-series traffic data is shown below. The fig
 
 The repository is organized as follows:
 
-- The `data/` folder contains time-series traffic data derived from a PCAP file, serving as the primary input for the experiment.
-- The `results/` folder stores output metrics including MAE, RMSE, and synchronization event counts.
+- The `Data/` folder contains time-series traffic data derived from a PCAP file, serving as the primary input for the experiment.
+- The `Results/` folder stores output metrics including MAE, RMSE, and synchronization event counts.
 
 ---
 

@@ -37,7 +37,7 @@ Each method is applied to time-series input data such as *packets per second* to
 
 ---
 
-## 📊 Sample Network Traffic Behavior
+## 📊 Sample Network Traffic behavior
 
 A visual sample of the captured time-series traffic data is shown below. The figure illustrates how the network traffic varies in an event-driven manner typically falling to zero after specific events, and showing distinct patterns, including triplet-triggered behaviors in the observed scenario.
 

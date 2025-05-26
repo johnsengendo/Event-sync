@@ -15,7 +15,7 @@ To evaluate and compare the performance of the following synchronization techniq
 - 📡 **Kalman Filter-based Synchronization**
 - 🎮 **Reinforcement Learning-based Synchronization** (e.g., PPO, SAC)
 
-Each method is applied to time-series input data such as *packets per second*—to assess its effectiveness in:
+Each method is applied to time-series input data such as *packets per second* to assess its effectiveness in:
 
 - Maintaining low prediction error  
 - Reducing the number of synchronization events  

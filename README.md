@@ -45,6 +45,30 @@ A visual sample of the captured time-series traffic data is shown below. The fig
 
 ---
 
+## 📁 Folder Structure
+
+The repository is organized as follows:
+
+- The `data/` folder contains time-series traffic data derived from a PCAP file, serving as the primary input for the experiment.
+- The `results/` folder stores output metrics including MAE, RMSE, and synchronization event counts.
+
+---
+
+## 📉 MAE and RMSE Performance Overview
+
+The figure below shows the performance comparison across different synchronization techniques using MAE and RMSE metrics.
+
+![Figure 2: MAE and RMSE Comparison](results/mae_rmse_plot.png)
+
+---
+
+## 🧠 How to run the experiment
+
+To reproduce the evaluation and run the simulations, use the Python script:
+
+```bash
+python sync.py
+
 ## 🧠 How to run the experiment
 
 To reproduce the evaluation and run the simulations, use the Python script:

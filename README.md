@@ -2,7 +2,7 @@
 
 This repository provides a comparative evaluation of multiple **event-based synchronization techniques** for **Network Digital Twins (NDTs)**. The goal is to improve synchronization accuracy and reduce overhead when working with time-series data generated from dynamic network environments.
 
-By simulating and assessing various methods, we aim to determine the most effective approach for minimizing error while optimizing synchronization efficiency in NDT scenarios.
+By simulating and assessing various methods, the aim is to determine the most effective approach for minimizing error while optimizing synchronization efficiency in NDT scenarios.
 
 ---
 

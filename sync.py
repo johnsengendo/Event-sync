@@ -1,4 +1,4 @@
-# Import necessary libraries
+# Importing necessary libraries
 import numpy as np
 import pandas as pd
 from filterpy.kalman import KalmanFilter
@@ -17,7 +17,6 @@ import os
 def load_data(filename='results.csv'):
     """
     Load data from a CSV file in the same directory as the script.
-
     Args:
         filename (str): Name of the CSV file containing the data
 
@@ -40,7 +39,7 @@ def load_data(filename='results.csv'):
 
 # Loading the data
 data = load_data()
-dt = 1  # Time step
+dt = 1  # Time steps in seconds
 
 # =====================
 # 2. Synchronization Methods
@@ -59,61 +58,65 @@ def adaptive_event_sync(pt, initial_thr, drift, adaptive_factor=0.1):
         tuple: (synchronized_state, synchronization_indices)
     """
     # Initializing state and synchronization indices
-    state, idx = [pt[0]], []  # Initialize state and synchronization indices
-    thr = initial_thr  # Initialize threshold
+    state, idx = [pt[0]], []  # Initializing state and synchronization indices
+    thr = initial_thr  
 
     # Iterating through the time series
     for i in range(1, len(pt)):
         # Checking if current value differs from last state by more than threshold
         if abs(pt[i] - state[-1]) > thr:
             # Synchronizing to current value
-            state.append(pt[i])  # Synchronize to current value
-            idx.append(i)  # Record synchronization index
-            thr = max(initial_thr, thr - adaptive_factor)  # Decrease threshold
+            state.append(pt[i])
+            idx.append(i)  # Recording synchronization index
+            thr = max(initial_thr, thr - adaptive_factor)
         else:
             # Drifting the state if not synchronizing
             state.append(state[-1] + drift * dt)
-            thr = min(initial_thr * 2, thr + adaptive_factor)  # Increase threshold
+            thr = min(initial_thr * 2, thr + adaptive_factor)
 
     return np.array(state), idx
 
-def mpc_sync(pt, drift, horizon, cost):
+def mpc_sync(pt, drift, horizon, cost, max_drift_error=1.0):
     """
-    Model Predictive Control synchronization method.
+    Model Predictive Control synchronization method with a hard cap on drift error.
 
     Args:
-        pt (numpy.ndarray): Input time series data
+        pt (np.ndarray): Input time series data
         drift (float): Drift rate when not synchronizing
         horizon (int): Prediction horizon
         cost (float): Cost of synchronization
+        max_drift_error (float): If abs(error) exceeds this, force a sync
 
     Returns:
         tuple: (synchronized_state, synchronization_indices)
     """
-    # Initializing state and synchronization indices
-    state, idx = [pt[0]], []  # Initialize state and synchronization indices
+    state, idx = [pt[0]], []
 
-    # Iterating through the time series
     for i in range(1, len(pt)):
-        # Calculating cost of synchronizing now
-        c_sync = cost + abs(pt[i] - state[-1])
+        pred_state = state[-1] + drift * dt
+        err = abs(pt[i] - pred_state)
 
-        # Calculating cost of drifting for the prediction horizon
+        # if drift-error would exceed max_drift_error, we force a sync
+        if err > max_drift_error:
+            state.append(pt[i])
+            idx.append(i)
+            continue
+
+        # otherwise use the original MPC cost check
+        c_sync = cost + abs(pt[i] - state[-1])
         c_drift = sum(
             abs(pt[i + h] - (state[-1] + drift * (h + 1) * dt))
             for h in range(horizon) if i + h < len(pt)
         )
 
-        # Choosing the action with lower cost
         if c_sync < c_drift:
-            # Synchronizing
-            state.append(pt[i])  # Synchronize
-            idx.append(i)  # Record synchronization index
+            state.append(pt[i])
+            idx.append(i)
         else:
-            # Drifting
-            state.append(state[-1] + drift * dt)  # Drift
+            state.append(pred_state)
 
     return np.array(state), idx
+
 
 def kalman_sync(pt, proc_var, meas_var):
     """
@@ -129,26 +132,26 @@ def kalman_sync(pt, proc_var, meas_var):
     """
     # Initializing Kalman Filter
     kf = KalmanFilter(dim_x=1, dim_z=1)
-    kf.x = np.array([pt[0]])  # Initial state
-    kf.F = kf.H = np.array([[1]])  # State transition and measurement matrices
-    kf.P *= 1000  # Initial state covariance
-    kf.Q = proc_var  # Process noise covariance
-    kf.R = meas_var  # Measurement noise covariance
+    kf.x = np.array([pt[0]])
+    kf.F = kf.H = np.array([[1]]) 
+    kf.P *= 1000
+    kf.Q = proc_var
+    kf.R = meas_var
 
     # Initializing state and synchronization indices
-    state, idx = [pt[0]], []  # Initialize state and synchronization indices
+    state, idx = [pt[0]], []
 
     # Iterating through the time series
     for i, z in enumerate(pt[1:], 1):
-        kf.predict()  # Predict next state
+        kf.predict()
 
         # Checking if measurement is significantly different from prediction
         if abs(z - kf.x[0]) > 3 * np.sqrt(kf.P[0, 0]):
-            kf.x = np.array([z])  # Reset state to measurement
-            idx.append(i)  # Record synchronization index
+            kf.x = np.array([z])
+            idx.append(i)  # Recording synchronization index
 
-        kf.update(z)  # Update state with measurement
-        state.append(kf.x[0])  # Record state
+        kf.update(z)
+        state.append(kf.x[0])  # Recording state
 
     return np.array(state), idx
 
@@ -179,18 +182,18 @@ class SyncEnv(gym.Env):
         super().reset(seed=seed)
         # Resetting the environment
         self.t = 0  # Current time step
-        self.state = self.pt[0]  # Current state
+        self.state = self.pt[0]
         self.last = 0  # Last synchronization time
         self.last_action = 0.0  # Last action taken
         return self._obs(), {}
 
     def _obs(self):
         """
-        Get current observation.
+        Getting current observation.
         """
         # Getting the current observation
-        err = self.pt[self.t] - self.state  # Current error
-        time_since = (self.t - self.last) * dt  # Time since last sync
+        err = self.pt[self.t] - self.state
+        time_since = (self.t - self.last) * dt
         return np.array([err, time_since, self.last_action, self._deriv[self.t], self._var[self.t]], np.float32)
 
     def step(self, action):
@@ -199,7 +202,7 @@ class SyncEnv(gym.Env):
         """
         # Converting action to threshold factor
         factor = float(np.clip(action, 0, 1))
-        thr = 1.0 + factor * 4.0  # Calculate threshold
+        thr = 1.0 + factor * 4.0
 
         # Calculating current error
         err = abs(self.pt[self.t] - self.state)
@@ -209,13 +212,13 @@ class SyncEnv(gym.Env):
 
         if sync:
             # Synchronizing
-            self.state = self.pt[self.t]  # Synchronize to current value
-            self.last = self.t  # Update last sync time
-            event_bonus = 0.5  # Bonus for synchronizing
+            self.state = self.pt[self.t]
+            self.last = self.t
+            event_bonus = 0.5
         else:
             # Drifting the state
-            self.state += 0.05 * dt  # Drift the state
-            event_bonus = 0.0  # No bonus for drifting
+            self.state += 0.05 * dt
+            event_bonus = 0.0
 
         # Calculating reward
         reward = -err**2 + event_bonus - 0.2*factor
@@ -284,8 +287,8 @@ def rl_event_sync(pt, drift, rl_model, venv):
         tuple: (synchronized_state, synchronization_indices)
     """
     # Initializing state and synchronization indices
-    state, idx = [pt[0]], []  # Initialize state and synchronization indices
-    obs = venv.reset()  # Reset environment
+    state, idx = [pt[0]], []  # Initializing state and synchronization indices
+    obs = venv.reset()  # Resetting environment
 
     # Iterating through the time series
     for i in range(1, len(pt)):
@@ -297,13 +300,13 @@ def rl_event_sync(pt, drift, rl_model, venv):
 
         # Converting action to threshold factor
         factor = float(np.clip(action, 0, 1))
-        thr = 1 + factor * 4  # Calculate threshold
+        thr = 1 + factor * 4
 
         # Checking if we should synchronize
         if abs(pt[i] - state[-1]) > thr:
             # Synchronizing
-            state.append(pt[i])  # Synchronize
-            idx.append(i)  # Record synchronization index
+            state.append(pt[i])
+            idx.append(i)
         else:
             # Drifting
             state.append(state[-1] + drift * dt)  # Drift
@@ -328,7 +331,7 @@ def evaluate(pt, methods):
 
     # Evaluating each method
     for name, fn in methods.items():
-        state, idx = fn()  # Get synchronized state and indices
+        state, idx = fn()
 
         # Calculating metrics
         mae = np.mean(np.abs(pt - state))
@@ -343,199 +346,129 @@ def evaluate(pt, methods):
 
     return results
 
-def plot_comparison(results, save_dir):
-    """
-    Plot comparison of MAE and RMSE for different methods.
-
-    Args:
-        results (list): Evaluation results
-        save_dir (str): Directory to save the plot
-    """
-    # Preparing data for plotting
-    names = [r['method'] for r in results]
-    mae_vals = [r['mae'] for r in results]
-    rmse_vals = [r['rmse'] for r in results]
-
-    plt.style.use('seaborn-v0_8-whitegrid')
+def plot_comparison(results, save_dir, dpi=600):
+    names    = [r['method'] for r in results]
+    mae_vals = [r['mae']    for r in results]
+    rmse_vals= [r['rmse']   for r in results]
 
     bar_width = 0.35
     r1 = np.arange(len(names))
     r2 = r1 + bar_width
 
-    fig, ax = plt.subplots(figsize=(12, 8), dpi=300)
+    fig, ax = plt.subplots(figsize=(14, 10), dpi=dpi)
 
-    # Plotting MAE bars
-    bars1 = ax.bar(r1, mae_vals, width=bar_width, label='MAE',
-                   color='#00008B', alpha=0.8, edgecolor='black', linewidth=0.7)
-    # Plotting RMSE bars
-    bars2 = ax.bar(r2, rmse_vals, width=bar_width, label='RMSE',
-                   color='#FFA500', alpha=0.8, edgecolor='black', linewidth=0.7)
+    # Stronger colors, bold edges
+    bars1 = ax.bar(r1, mae_vals, width=bar_width, label='MAE', edgecolor='black', linewidth=1.2)
+    bars2 = ax.bar(r2, rmse_vals, width=bar_width, label='RMSE', edgecolor='black', linewidth=1.2)
 
-    # Adding value labels
-    for bar in bars1:
-        height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2., height + height*0.01,
-                f'{height:.3f}', ha='center', va='bottom', fontsize=11, fontweight='bold')
-    for bar in bars2:
-        height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2., height + height*0.01,
-                f'{height:.3f}', ha='center', va='bottom', fontsize=11, fontweight='bold')
-
-    # Setting labels and title
-    ax.set_xlabel('Synchronization Method', fontsize=14, fontweight='bold',
-                  color='#2c3e50', labelpad=10)
-    ax.set_ylabel('Error Magnitude', fontsize=14, fontweight='bold',
-                  color='#2c3e50', labelpad=10)
-    ax.set_title('Performance Comparison: MAE and RMSE',
-                 fontsize=16, fontweight='bold', color='#2c3e50', pad=20)
+    # Labels & Bold formatting
+    ax.set_xlabel('Synchronization method', fontsize=18, fontweight='bold')
+    ax.set_ylabel('Error magnitude',       fontsize=18, fontweight='bold')
+    ax.set_title('Performance comparison: MAE vs RMSE', fontsize=22, fontweight='bold')
 
     ax.set_xticks(r1 + bar_width/2)
-    ax.set_xticklabels(names, fontsize=12, fontweight='bold')
+    ax.set_xticklabels(names, fontsize=16, fontweight='bold')
 
-    ax.tick_params(axis='y', labelsize=11)
+    ax.tick_params(axis='y', labelsize=14)
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x:.3f}'))
 
-    legend = ax.legend(loc='upper right', fontsize=12, frameon=True,
-                      fancybox=True, shadow=True, framealpha=0.9)
-    legend.get_frame().set_facecolor('white')
+    # Value labels
+    for bar in bars1 + bars2:
+        h = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2, h + 0.01*h,
+                f'{h:.3f}', ha='center', va='bottom', fontsize=14, fontweight='bold')
 
-    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
-    ax.set_axisbelow(True)
+    legend = ax.legend(fontsize=16, frameon=True)
+    legend.get_title() and legend.set_title(None)
 
-    y_max = max(max(mae_vals), max(rmse_vals))
-    ax.set_ylim(0, y_max * 1.15)
-
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_linewidth(0.5)
-    ax.spines['bottom'].set_linewidth(0.5)
-
-    # Saving the plot
-    plot_path = os.path.join(save_dir, 'performance_comparison.png')
-    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    plt.savefig(os.path.join(save_dir, 'performance_comparison_hd.png'), dpi=dpi, bbox_inches='tight')
     plt.close()
 
-def plot_sync_counts(results, save_dir):
-    """
-    Plot synchronization event counts for different methods.
 
-    Args:
-        results (list): Evaluation results
-        save_dir (str): Directory to save the plot
-    """
-    # Preparing data for plotting
-    names = [r['method'] for r in results]
-    sync_counts = [r['syncs'] for r in results]
+def plot_sync_counts(results, save_dir, dpi=600):
+    names  = [r['method'] for r in results]
+    counts = [r['syncs']  for r in results]
 
-    plt.style.use('seaborn-v0_8-whitegrid')
+    fig, ax = plt.subplots(figsize=(14, 10), dpi=dpi)
 
-    fig, ax = plt.subplots(figsize=(12, 8), dpi=300)
+    bars = ax.bar(names, counts, edgecolor='black', linewidth=1.2)
 
-    # Plotting sync counts
-    colors = ['#00008B', '#00008B', '#00008B', '#00008B']
+    ax.set_xlabel('Synchronization method', fontsize=18, fontweight='bold')
+    ax.set_ylabel('Number of Sync events', fontsize=18, fontweight='bold')
+    ax.set_title('Synchronization event frequency', fontsize=22, fontweight='bold')
 
-    bars = ax.bar(names, sync_counts, color=colors, alpha=0.8,
-                  edgecolor='black', linewidth=0.7, width=0.6)
-
-    for bar, count in zip(bars, sync_counts):
-        height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2., height + height*0.01,
-                f'{count:,}', ha='center', va='bottom', fontsize=12,
-                fontweight='bold', color='#2c3e50')
-
-    # Setting labels and title
-    ax.set_xlabel('Synchronization Method', fontsize=14, fontweight='bold',
-                  color='#2c3e50', labelpad=10)
-    ax.set_ylabel('Number of Synchronization Events', fontsize=14, fontweight='bold',
-                  color='#2c3e50', labelpad=10)
-    ax.set_title('Synchronization event frequency by method',
-                 fontsize=16, fontweight='bold', color='#2c3e50', pad=20)
-
-    ax.tick_params(axis='x', labelsize=12)
-    ax.tick_params(axis='y', labelsize=11)
-
+    ax.set_xticklabels(names, fontsize=16, fontweight='bold')
+    ax.tick_params(axis='y', labelsize=14)
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{int(x):,}'))
 
-    ax.grid(True, axis='y', alpha=0.3, linestyle='-', linewidth=0.5)
-    ax.set_axisbelow(True)
+    for bar in bars:
+        h = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2, h + 0.01*h,
+                f'{h:,}', ha='center', va='bottom', fontsize=14, fontweight='bold')
 
-    y_max = max(sync_counts)
-    ax.set_ylim(0, y_max * 1.15)
-
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_linewidth(0.5)
-    ax.spines['bottom'].set_linewidth(0.5)
-
-    ax.set_facecolor('#fafafa')
-
-    # Saving the plot
-    plot_path = os.path.join(save_dir, 'sync_counts.png')
-    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+    ax.grid(True, axis='y', alpha=0.3)
+    fig.tight_layout()
+    plt.savefig(os.path.join(save_dir, 'sync_counts_hd.png'), dpi=dpi, bbox_inches='tight')
     plt.close()
 
-def plot_cumulative_error(pt, methods, save_dir):
-    """
-    Plot cumulative error over time for different methods.
 
-    Args:
-        pt (numpy.ndarray): Input time series data
-        methods (dict): Dictionary of synchronization methods
-        save_dir (str): Directory to save the plot
-    """
-    plt.style.use('seaborn-v0_8-whitegrid')
+def plot_cumulative_error(pt, methods, save_dir, dpi=600):
+    """Enhanced cumulative error plot with high-definition dashed lines"""
+    t = np.arange(len(pt))
 
-    fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
+    fig, ax = plt.subplots(figsize=(20, 12), dpi=dpi)
 
-    t = np.arange(0, len(pt)) * dt
+    
+    colors = {
+        'Adaptive Event': '#2E86AB',
+        'MPC': '#A23B72', 
+        'Kalman': '#F18F01',
+        'RL': '#C73E1D'
+    }
+    
+    
+    line_styles = {
+        'Adaptive Event': (0, (12, 6)),      
+        'MPC': (0, (16, 8, 4, 8)),          
+        'Kalman': (0, (8, 4)),              
+        'RL': (0, (20, 6, 4, 6, 4, 6))     
+    }
 
-    colors = ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D']
-    linestyles = ['-', '--', '-.', ':']
-    linewidths = [2.5, 2.5, 2.5, 2.5]
-
-    # Plotting cumulative error for each method
-    for i, (name, fn) in enumerate(methods.items()):
+    for name, fn in methods.items():
         state, _ = fn()
-        error = np.abs(pt - state)
-        cum_error = np.cumsum(error)
-        ax.plot(t, cum_error, color=colors[i % len(colors)],
-                linestyle=linestyles[i % len(linestyles)],
-                linewidth=linewidths[i % len(linewidths)],
-                label=f'{name}', alpha=0.9)
+        cum_err = np.cumsum(np.abs(pt - state))
+        
+        ax.plot(t, cum_err, label=name, 
+                color=colors.get(name, '#333333'),
+                linestyle=line_styles.get(name, '--'),
+                linewidth=6.5, alpha=0.9)
 
-    # Setting title and labels
-    ax.set_title('Cumulative Absolute Error Over Time',
-                 fontsize=16, fontweight='bold', color='#2c3e50', pad=20)
-    ax.set_xlabel('Time (seconds)', fontsize=14, fontweight='bold',
-                  color='#2c3e50', labelpad=10)
-    ax.set_ylabel('Cumulative absolute error', fontsize=14, fontweight='bold',
-                  color='#2c3e50', labelpad=10)
+    ax.set_title('Cumulative absolute error over time', fontsize=28, fontweight='bold', pad=30)
+    ax.set_xlabel('Time (seconds)', fontsize=24, fontweight='bold', labelpad=20)
+    ax.set_ylabel('Cumulative error', fontsize=24, fontweight='bold', labelpad=20)
 
-    ax.tick_params(axis='both', labelsize=11)
+    ax.tick_params(axis='both', labelsize=18, width=2, length=10)
+    ax.tick_params(axis='both', which='minor', width=1.5, length=6)
+    
+    # Enhanced legend
+    legend = ax.legend(fontsize=20, frameon=True, fancybox=True, shadow=True,
+                      loc='upper left', framealpha=0.95)
+    legend.get_frame().set_linewidth(2)
+    legend.get_frame().set_edgecolor('black')
 
-    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{int(x):,}'))
-
-    legend = ax.legend(loc='upper left', fontsize=12, frameon=True,
-                      fancybox=True, shadow=True, framealpha=0.95)
-    legend.get_frame().set_facecolor('white')
-    legend.get_frame().set_edgecolor('gray')
-
-    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+    ax.grid(True, alpha=0.4, linewidth=1.5)
     ax.set_axisbelow(True)
-
-    ax.set_ylim(bottom=0)
-
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_linewidth(0.5)
-    ax.spines['bottom'].set_linewidth(0.5)
-
-    ax.set_facecolor('#fafafa')
-
-    # Saving the plot
-    plot_path = os.path.join(save_dir, 'cumulative_error.png')
-    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+    
+    # Enhanced spines
+    for spine in ax.spines.values():
+        spine.set_linewidth(2)
+    
+    fig.tight_layout()
+    plt.savefig(os.path.join(save_dir, 'cumulative_error_hd.png'), dpi=dpi, bbox_inches='tight')
     plt.close()
+
 
 # =====================
 # 6. Information Transfer Analysis
@@ -574,13 +507,26 @@ def calculate_information_metrics(pt, methods, bits_per_sync=32):
 
     return info_metrics
 
-def plot_information_metrics(info_metrics, save_dir):
+def plot_information_metrics(info_metrics, save_dir, dpi=600):
     """
-    Plot information transfer metrics.
+    Plot different metrics of information transmission for various synchronization methods.
 
     Args:
-        info_metrics (list): Information metrics for each method
-        save_dir (str): Directory to save the plot
+        info_metrics (list of dict): A list of dictionaries, each containing metrics such as:
+            - 'method': Name of the synchronization method
+            - 'total_bits': Total number of bits transmitted
+            - 'bits_per_time': Bits transmitted per unit time
+            - 'error_info_tradeoff': Product of MAE and bits/sample for trade-off analysis
+        save_dir (str): Path to the directory where the plot will be saved
+        dpi (int, optional): Resolution of the saved image. Defaults to 600.
+
+    Description:
+        This function generates a 3-panel bar chart showing:
+            1. Total bits transmitted by each method
+            2. Communication bandwidth (bits per time unit)
+            3. Trade-off between error and information transfer (MAE × bits/sample)
+
+        Each bar is annotated with its value, and plots are styled for clarity and publication quality.
     """
     plt.style.use('seaborn-v0_8-whitegrid')
 
@@ -590,133 +536,146 @@ def plot_information_metrics(info_metrics, save_dir):
     bits_per_time = [m['bits_per_time'] for m in info_metrics]
     error_info = [m['error_info_tradeoff'] for m in info_metrics]
 
-    # Creating figure with three subplots
-    fig, axes = plt.subplots(1, 3, figsize=(18, 6), dpi=300)
+    # Creating figure with enhanced sizing
+    fig, axes = plt.subplots(1, 3, figsize=(24, 10), dpi=dpi)
+
+    # Enhanced color palette
+    colors = ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D']
 
     # 1. Total bits transmitted
-    bars1 = axes[0].bar(methods, total_bits, color='#4C72B0', alpha=0.8,
-                       edgecolor='black', linewidth=0.7)
-    for bar in bars1:
+    bars1 = axes[0].bar(methods, total_bits, color=colors[:len(methods)], alpha=0.85,
+                       edgecolor='black', linewidth=2.5)
+    for i, bar in enumerate(bars1):
         height = bar.get_height()
-        axes[0].text(bar.get_x() + bar.get_width()/2., height + 0.01*height,
+        axes[0].text(bar.get_x() + bar.get_width()/2., height + 0.02*height,
                     f'{int(height):,}', ha='center', va='bottom',
-                    fontsize=11, fontweight='bold')
-    axes[0].set_title('Total Information Transmitted (bits)',
-                     fontsize=14, fontweight='bold', color='#2c3e50')
-    axes[0].set_ylabel('Bits', fontsize=12, fontweight='bold', color='#2c3e50')
+                    fontsize=14, fontweight='bold')
+    
+    axes[0].set_title('Total Information transmitted (bits)',
+                     fontsize=18, fontweight='bold', color='#2c3e50', pad=20)
+    axes[0].set_ylabel('Bits', fontsize=16, fontweight='bold', color='#2c3e50', labelpad=15)
     axes[0].yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{int(x):,}'))
-    axes[0].set_ylim(0, max(total_bits) * 1.15)
+    axes[0].set_ylim(0, max(total_bits) * 1.2)
 
-    # 2. Communication Bandwidth
-    bars2 = axes[1].bar(methods, bits_per_time, color='#C44E52', alpha=0.8,
-                       edgecolor='black', linewidth=0.7)
-    for bar in bars2:
+    # 2. Bits per time unit
+    bars2 = axes[1].bar(methods, bits_per_time, color=colors[:len(methods)], alpha=0.85,
+                       edgecolor='black', linewidth=2.5)
+    for i, bar in enumerate(bars2):
         height = bar.get_height()
-        axes[1].text(bar.get_x() + bar.get_width()/2., height + 0.01*height,
+        axes[1].text(bar.get_x() + bar.get_width()/2., height + 0.02*height,
                     f'{height:.1f}', ha='center', va='bottom',
-                    fontsize=11, fontweight='bold')
-    axes[1].set_title('Communication Bandwidth (bits per time unit)',
-                     fontsize=14, fontweight='bold', color='#2c3e50')
-    axes[1].set_ylabel('Bits/Time', fontsize=12, fontweight='bold', color='#2c3e50')
-    axes[1].set_ylim(0, max(bits_per_time) * 1.15)
+                    fontsize=14, fontweight='bold')
+    
+    axes[1].set_title('Communication bandwidth (bits per time unit)',
+                     fontsize=18, fontweight='bold', color='#2c3e50', pad=20)
+    axes[1].set_ylabel('Bits/Time', fontsize=16, fontweight='bold', color='#2c3e50', labelpad=15)
+    axes[1].set_ylim(0, max(bits_per_time) * 1.2)
 
     # 3. Error-Information Tradeoff
-    bars3 = axes[2].bar(methods, error_info, color='#8172B3', alpha=0.8,
-                       edgecolor='black', linewidth=0.7)
-    for bar in bars3:
+    bars3 = axes[2].bar(methods, error_info, color=colors[:len(methods)], alpha=0.85,
+                       edgecolor='black', linewidth=2.5)
+    for i, bar in enumerate(bars3):
         height = bar.get_height()
-        axes[2].text(bar.get_x() + bar.get_width()/2., height + 0.01*height,
+        axes[2].text(bar.get_x() + bar.get_width()/2., height + 0.02*height,
                     f'{height:.3f}', ha='center', va='bottom',
-                    fontsize=11, fontweight='bold')
-    axes[2].set_title('Error-Information Tradeoff (lower is better)',
-                     fontsize=14, fontweight='bold', color='#2c3e50')
-    axes[2].set_ylabel('MAE × Bits/Sample', fontsize=12, fontweight='bold', color='#2c3e50')
-    axes[2].set_ylim(0, max(error_info) * 1.15)
+                    fontsize=14, fontweight='bold')
+    
+    axes[2].set_title('Error-Information tradeoff',
+                     fontsize=18, fontweight='bold', color='#2c3e50', pad=20)
+    axes[2].set_ylabel('MAE × Bits/sample', fontsize=16, fontweight='bold', color='#2c3e50', labelpad=15)
+    axes[2].set_ylim(0, max(error_info) * 1.2)
 
-    # Applying common styling for all subplots
+    # Enhanced styling for all subplots
     for ax in axes:
-        ax.set_xlabel('Synchronization Method', fontsize=12, fontweight='bold', color='#2c3e50')
-        ax.tick_params(axis='x', labelsize=11)
-        ax.tick_params(axis='y', labelsize=11)
-        ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+        ax.set_xlabel('Synchronization method', fontsize=16, fontweight='bold', color='#2c3e50', labelpad=15)
+        ax.tick_params(axis='x', labelsize=14, rotation=15, width=2, length=8)
+        ax.tick_params(axis='y', labelsize=14, width=2, length=8)
+        ax.grid(True, alpha=0.4, linestyle='-', linewidth=1.2)
         ax.set_axisbelow(True)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['left'].set_linewidth(0.5)
-        ax.spines['bottom'].set_linewidth(0.5)
+        
+        # Enhanced spines
+        for spine in ax.spines.values():
+            spine.set_linewidth(2)
         ax.set_facecolor('#fafafa')
 
     plt.tight_layout()
-    plt.suptitle('Information Transfer Analysis',
-                fontsize=16, fontweight='bold', color='#2c3e50', y=1.02)
-    plt.subplots_adjust(top=0.85)
+    plt.suptitle('Information transfer analysis',
+                fontsize=22, fontweight='bold', color='#2c3e50', y=0.98)
+    plt.subplots_adjust(top=0.88)
 
     # Saving the plot
     plot_path = os.path.join(save_dir, 'information_metrics.png')
-    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+    plt.savefig(plot_path, dpi=dpi, bbox_inches='tight')
     plt.close()
 
-def plot_error_vs_information(info_metrics, save_dir):
+
+def plot_error_vs_information(info_metrics, save_dir, dpi=600):
     """
-    Plot error vs information tradeoff.
+    Plotting the trade-off between prediction error and information transfer for different methods.
 
     Args:
-        info_metrics (list): Information metrics for each method
-        save_dir (str): Directory to save the plot
+        info_metrics (list of dict): Each dict should contain 'method', 'mae', and 'total_bits'.
+        save_dir (str): Directory where the plot will be saved.
+        dpi (int): Resolution of the saved plot.
+
+    Returns:
+        None. Saves the plot as 'error_vs_information.png' in the specified directory.
     """
     plt.style.use('seaborn-v0_8-whitegrid')
 
-    fig, ax = plt.subplots(figsize=(10, 8), dpi=300)
+    fig, ax = plt.subplots(figsize=(14, 10), dpi=dpi)
 
     # Extracting data
     methods = [m['method'] for m in info_metrics]
     mae = [m['mae'] for m in info_metrics]
     bits_per_sample = [m['total_bits']/len(data) for m in info_metrics]
 
-    # Defining colors for scatter points
-    colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12']
+    # Enhanced colors for scatter points
+    colors = ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D']
 
-    # Creating scatter plot
+    # Creating enhanced scatter plot
     for i, (method, x, y) in enumerate(zip(methods, bits_per_sample, mae)):
-        ax.scatter(x, y, s=180, color=colors[i % len(colors)], alpha=0.8,
-                  edgecolor='black', linewidth=1, label=method)
-        ax.text(x+0.02, y, method, fontsize=12, fontweight='bold')
+        ax.scatter(x, y, s=250, color=colors[i % len(colors)], alpha=0.8,
+                  edgecolor='black', linewidth=2.5, label=method, zorder=5)
+        ax.text(x+0.025, y, method, fontsize=14, fontweight='bold',
+                bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
 
-    # Enhancing plot styling
-    ax.set_title('Error vs Information Transfer Trade-off',
-                fontsize=16, fontweight='bold', color='#2c3e50', pad=20)
-    ax.set_xlabel('Information Transfer (bits per sample)',
-                fontsize=14, fontweight='bold', color='#2c3e50', labelpad=10)
+    # Enhanced plot styling
+    ax.set_title('Error vs Information transfer trade-off',
+                fontsize=22, fontweight='bold', color='#2c3e50', pad=25)
+    ax.set_xlabel('Information transfer (bits per sample)',
+                fontsize=18, fontweight='bold', color='#2c3e50', labelpad=15)
     ax.set_ylabel('Mean Absolute Error (MAE)',
-                fontsize=14, fontweight='bold', color='#2c3e50', labelpad=10)
-    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+                fontsize=18, fontweight='bold', color='#2c3e50', labelpad=15)
+    
+    ax.grid(True, alpha=0.4, linestyle='-', linewidth=1.2)
     ax.set_axisbelow(True)
 
-    # Adding explanatory text
+    # Enhanced explanatory text
     ax.text(0.02, 0.02,
             "Better methods are closer to the origin (lower error, lower bits)",
-            transform=ax.transAxes, fontsize=12, fontstyle='italic')
+            transform=ax.transAxes, fontsize=14, fontstyle='italic',
+            bbox=dict(boxstyle="round,pad=0.5", facecolor='lightyellow', alpha=0.8))
 
-    # Setting axis limits with some padding
-    x_max = max(bits_per_sample) * 1.2
-    y_max = max(mae) * 1.2
+    # Setting axis limits with padding
+    x_max = max(bits_per_sample) * 1.25
+    y_max = max(mae) * 1.25
     ax.set_xlim(0, x_max)
     ax.set_ylim(0, y_max)
 
-    # Removing top and right spines
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_linewidth(0.5)
-    ax.spines['bottom'].set_linewidth(0.5)
-
-    # Adding subtle background color
+    # Enhanced spines
+    for spine in ax.spines.values():
+        spine.set_linewidth(2)
     ax.set_facecolor('#fafafa')
+    
+    # Enhanced tick parameters
+    ax.tick_params(axis='both', labelsize=14, width=2, length=8)
 
     plt.tight_layout()
 
     # Saving the plot
     plot_path = os.path.join(save_dir, 'error_vs_information.png')
-    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+    plt.savefig(plot_path, dpi=dpi, bbox_inches='tight')
     plt.close()
 
 # =====================
@@ -754,87 +713,78 @@ def track_information_transmission(pt, methods, bits_per_sync=32):
 
     return info_tracking
 
-def plot_information_per_sync_event_hd(info_tracking, save_dir):
-    """
-    Plot high-definition line plot of information transmitted at each synchronization event.
-
-    Args:
-        info_tracking (dict): Information transmission data for each method
-        save_dir (str): Directory to save the plot
-    """
+def plot_information_per_sync_event_hd(info_tracking, save_dir, dpi=600):
+    
     plt.style.use('seaborn-v0_8-whitegrid')
 
-    # Creating figure with high DPI
-    fig, ax = plt.subplots(figsize=(16, 9), dpi=300)
+    # Creating figure with enhanced high DPI
+    fig, ax = plt.subplots(figsize=(20, 12), dpi=dpi)
 
-    # Defining color palette
+    # Enhanced color palette
     colors = {
-        'Adaptive Event': '#1f77b4',
-        'MPC': '#ff7f0e',
-        'Kalman': '#2ca02c',
-        'RL': '#d62728'
+        'Adaptive Event': '#2E86AB',
+        'MPC': '#A23B72',
+        'Kalman': '#F18F01',
+        'RL': '#C73E1D'
     }
 
-    # Defining line styles
-    linestyles = {
-        'Adaptive Event': '-',
-        'MPC': '--',
-        'Kalman': '-.',
-        'RL': ':'
+    # Enhanced dash patterns - bigger and more visible
+    line_styles = {
+        'Adaptive Event': (0, (15, 8)),          # Long dash
+        'MPC': (0, (18, 10, 4, 10)),            # Dash-dot pattern
+        'Kalman': (0, (10, 5)),                 # Medium dash
+        'RL': (0, (25, 8, 5, 8, 5, 8))         # Complex dash pattern
     }
 
-    # Plotting each method with straight lines and no annotations
+    # Plotting each method with enhanced styling (no markers)
     for name, data in info_tracking.items():
         ax.plot(data['sync_times'], data['cumulative_bits'],
-               label=name, color=colors[name],
-               linestyle=linestyles[name],
-               linewidth=2.5, alpha=0.9)
+               label=name, color=colors.get(name, '#333333'),
+               linestyle=line_styles.get(name, '--'),
+               linewidth=6.5, alpha=0.9, zorder=2)  # Increased line width, removed scatter plot
 
-        ax.scatter(data['sync_times'], data['cumulative_bits'],
-                  color=colors[name], s=80, zorder=3,
-                  edgecolor='white', linewidth=1.5, alpha=0.8)
+    # Enhanced title and labels
+    ax.set_title('Information transmitted at each synchronization event',
+                fontsize=28, fontweight='bold', color='#2c3e50', pad=35)
+    ax.set_xlabel('Time (seconds)', fontsize=24, fontweight='bold', 
+                 color='#2c3e50', labelpad=20)
+    ax.set_ylabel('Cumulative bits transmitted', fontsize=24, fontweight='bold', 
+                 color='#2c3e50', labelpad=20)
 
-    # Adding title and labels with larger fonts
-    ax.set_title('Information Transmitted at Each Synchronization Event',
-                fontsize=18, fontweight='bold', color='#2c3e50', pad=25)
-    ax.set_xlabel('Time (seconds)', fontsize=16, fontweight='bold', color='#2c3e50', labelpad=15)
-    ax.set_ylabel('Cumulative Bits Transmitted', fontsize=16, fontweight='bold', color='#2c3e50', labelpad=15)
-
-    # Customizing grid
-    ax.grid(True, alpha=0.4, linestyle='-', linewidth=0.7)
+    # Enhanced grid
+    ax.grid(True, alpha=0.4, linestyle='-', linewidth=1.5)
     ax.set_axisbelow(True)
 
-    # Adding legend with better positioning
-    legend = ax.legend(loc='upper left', fontsize=14, frameon=True,
-                      fancybox=True, shadow=True, framealpha=0.9)
-    legend.get_frame().set_facecolor('white')
-    legend.get_frame().set_edgecolor('gray')
+    # Enhanced legend
+    legend = ax.legend(loc='upper left', fontsize=18, frameon=True,
+                      fancybox=True, shadow=True, framealpha=0.95,
+                      edgecolor='black', facecolor='white')
+    legend.get_frame().set_linewidth(2)
 
-    # Setting axis limits with padding
-    max_time = max(max(data['sync_times'] for data in info_tracking.values()))
-    max_bits = max(max(data['cumulative_bits'] for data in info_tracking.values()))
-    ax.set_xlim(0, max_time * 1.05)
-    ax.set_ylim(0, max_bits * 1.1)
+    # Setting axis limits with enhanced padding
+    if info_tracking:
+        max_time = max(max(data['sync_times']) for data in info_tracking.values() if data['sync_times'])
+        max_bits = max(max(data['cumulative_bits']) for data in info_tracking.values() if data['cumulative_bits'])
+        ax.set_xlim(0, max_time * 1.08)
+        ax.set_ylim(0, max_bits * 1.12)
 
-    # Styling the plot for high definition
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_linewidth(1.5)
-    ax.spines['bottom'].set_linewidth(1.5)
+    # Enhanced styling
+    for spine in ax.spines.values():
+        spine.set_linewidth(2.5)
 
-    # Adjusting tick parameters
-    ax.tick_params(axis='both', which='major', labelsize=14, width=1.5, length=6)
-    ax.tick_params(axis='both', which='minor', width=1, length=3)
+    # Enhanced tick parameters
+    ax.tick_params(axis='both', which='major', labelsize=18, width=2.5, length=10)
+    ax.tick_params(axis='both', which='minor', width=1.5, length=6)
 
-    # Setting face color
+    # Enhanced face color
     ax.set_facecolor('#f8f9fa')
 
-    # Using tight layout for better spacing
+    # Using tight layout
     plt.tight_layout()
 
-    # Saving the plot
+    # Saving the enhanced plot
     plot_path = os.path.join(save_dir, 'information_transmission_hd.png')
-    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+    plt.savefig(plot_path, dpi=dpi, bbox_inches='tight', facecolor='white')
     plt.close()
 
 # =====================

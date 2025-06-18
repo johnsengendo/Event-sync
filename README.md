@@ -59,9 +59,9 @@ The repository is organized as follows:
 The figure below shows the performance comparison across different synchronization techniques using MAE and RMSE metrics.
 
 ![Figure 2: MAE and RMSE Comparison](Results/performance_comparison.png)
-![Figure 2: MAE and RMSE Comparison](Results/cumulative_error.png)
-![Figure 2: MAE and RMSE Comparison](Results/information_transmission.png)
-![Figure 2: MAE and RMSE Comparison](Results/sync_counts.png)
+![Figure 2: Cumulative](Results/cumulative_error.png)
+![Figure 2: information](Results/information_transmission.png)
+![Figure 2: synccounts](Results/sync_counts.png)
 
 ---
 

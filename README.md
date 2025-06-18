@@ -20,7 +20,7 @@ Each method is applied to time-series input data such as *packets per second* to
 - Maintaining low predictio / syncronization error  
 - Reducing the number of synchronization events  
 - Supporting robust, real-time updates in digital twin systems
-- Cummulative error  
+- Cummulative error over time
 
 ---
 
@@ -29,13 +29,13 @@ Each method is applied to time-series input data such as *packets per second* to
 - 📉 **Error Metrics**  
   - Mean Absolute Error (MAE)  
   - Root Mean Squared Error (RMSE)
+  - Cummulative absolute error over time
 
-- 🔁 **Synchronization Cost**  
+- 🔁 **Synchronization Cost** 
   - Number of synchronization events triggered
 
-- ⚖️ **Trade-Off Analysis**  
-  - Balancing prediction accuracy with update frequency
-
+- ⚖️ **Information Analysis**  
+  - Information transmission
 ---
 
 ## 📊 Sample Network Traffic behavior

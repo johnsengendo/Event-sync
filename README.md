@@ -68,7 +68,7 @@ The figure below shows the performance comparison across different synchronizati
 
 ## 🧠 How to run the experiment
 
-To reproduce the evaluation and run the simulations, use the Python script below:
+To reproduce the evaluation and run the simulations, use the Python script below in the folder where the data traffic is stored:
 
 ```bash
 python sync.py

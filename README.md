@@ -6,7 +6,7 @@ By simulating and assessing various methods, the aim is to determine the most ef
 
 ---
 
-## 🎯 Project Objective
+## 🎯 Project objective
 
 To evaluate and compare the performance of the following synchronization techniques:
 
@@ -17,9 +17,10 @@ To evaluate and compare the performance of the following synchronization techniq
 
 Each method is applied to time-series input data such as *packets per second* to assess its effectiveness in:
 
-- Maintaining low prediction error  
+- Maintaining low predictio / syncronization error  
 - Reducing the number of synchronization events  
-- Supporting robust, real-time updates in digital twin systems  
+- Supporting robust, real-time updates in digital twin systems
+- Cummulative error  
 
 ---
 

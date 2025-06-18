@@ -17,8 +17,8 @@ To evaluate and compare the performance of the following synchronization techniq
 
 Each method is applied to time-series input data such as *packets per second* to assess its effectiveness in:
 
-- Maintaining low predictio / syncronization error  
-- Reducing the number of synchronization events  
+- Maintaining low predictio / syncronization error 
+- Reducing the number of synchronization events
 - Supporting robust, real-time updates in digital twin systems
 - Cummulative error over time
 
@@ -51,7 +51,7 @@ A visual sample of the captured time-series traffic data is shown below. The fig
 The repository is organized as follows:
 
 - The `Data/` folder contains time-series traffic data derived from a PCAP file, serving as the primary input for the experiment.
-- The `Results/` folder stores output metrics including MAE, RMSE, and synchronization event counts.
+- The `Results/` folder stores output metrics for the results obatined.
 
 ---
 
@@ -68,7 +68,7 @@ The figure below shows the performance comparison across different synchronizati
 
 ## 🧠 How to run the experiment
 
-To reproduce the evaluation and run the simulations, use the Python script:
+To reproduce the evaluation and run the simulations, use the Python script below:
 
 ```bash
 python sync.py

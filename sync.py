@@ -58,7 +58,7 @@ def adaptive_event_sync(pt, initial_thr, drift, adaptive_factor=0.1):
         tuple: (synchronized_state, synchronization_indices)
     """
     # Initializing state and synchronization indices
-    state, idx = [pt[0]], []  # Initializing state and synchronization indices
+    state, idx = [pt[0]], []
     thr = initial_thr  
 
     # Iterating through the time series
@@ -67,7 +67,7 @@ def adaptive_event_sync(pt, initial_thr, drift, adaptive_factor=0.1):
         if abs(pt[i] - state[-1]) > thr:
             # Synchronizing to current value
             state.append(pt[i])
-            idx.append(i)  # Recording synchronization index
+            idx.append(i)
             thr = max(initial_thr, thr - adaptive_factor)
         else:
             # Drifting the state if not synchronizing
@@ -130,7 +130,7 @@ def kalman_sync(pt, proc_var, meas_var):
     Returns:
         tuple: (synchronized_state, synchronization_indices)
     """
-    # Initializing Kalman Filter
+    # Initializing Kalman filter
     kf = KalmanFilter(dim_x=1, dim_z=1)
     kf.x = np.array([pt[0]])
     kf.F = kf.H = np.array([[1]]) 
@@ -148,10 +148,10 @@ def kalman_sync(pt, proc_var, meas_var):
         # Checking if measurement is significantly different from prediction
         if abs(z - kf.x[0]) > 3 * np.sqrt(kf.P[0, 0]):
             kf.x = np.array([z])
-            idx.append(i)  # Recording synchronization index
+            idx.append(i)
 
         kf.update(z)
-        state.append(kf.x[0])  # Recording state
+        state.append(kf.x[0])
 
     return np.array(state), idx
 
@@ -314,7 +314,7 @@ def rl_event_sync(pt, drift, rl_model, venv):
     return np.array(state), idx
 
 # =====================
-# 5. Evaluation and Visualization
+# 5. Evaluation and visualization
 # =====================
 def evaluate(pt, methods):
     """
@@ -357,7 +357,7 @@ def plot_comparison(results, save_dir, dpi=600):
 
     fig, ax = plt.subplots(figsize=(14, 10), dpi=dpi)
 
-    # Stronger colors, bold edges
+    # Ploting with Stronger colors, bold edges
     bars1 = ax.bar(r1, mae_vals, width=bar_width, label='MAE', edgecolor='black', linewidth=1.2)
     bars2 = ax.bar(r2, rmse_vals, width=bar_width, label='RMSE', edgecolor='black', linewidth=1.2)
 
@@ -452,7 +452,7 @@ def plot_cumulative_error(pt, methods, save_dir, dpi=600):
     ax.tick_params(axis='both', labelsize=18, width=2, length=10)
     ax.tick_params(axis='both', which='minor', width=1.5, length=6)
     
-    # Enhanced legend
+    # legend
     legend = ax.legend(fontsize=20, frameon=True, fancybox=True, shadow=True,
                       loc='upper left', framealpha=0.95)
     legend.get_frame().set_linewidth(2)
@@ -461,7 +461,7 @@ def plot_cumulative_error(pt, methods, save_dir, dpi=600):
     ax.grid(True, alpha=0.4, linewidth=1.5)
     ax.set_axisbelow(True)
     
-    # Enhanced spines
+    # Spines
     for spine in ax.spines.values():
         spine.set_linewidth(2)
     
@@ -471,7 +471,7 @@ def plot_cumulative_error(pt, methods, save_dir, dpi=600):
 
 
 # =====================
-# 6. Information Transfer Analysis
+# 6. Information transfer analysis
 # =====================
 def calculate_information_metrics(pt, methods, bits_per_sync=32):
     """
@@ -571,7 +571,7 @@ def plot_information_metrics(info_metrics, save_dir, dpi=600):
     axes[1].set_ylabel('Bits/Time', fontsize=16, fontweight='bold', color='#2c3e50', labelpad=15)
     axes[1].set_ylim(0, max(bits_per_time) * 1.2)
 
-    # 3. Error-Information Tradeoff
+    # 3. Error-Information tradeoff
     bars3 = axes[2].bar(methods, error_info, color=colors[:len(methods)], alpha=0.85,
                        edgecolor='black', linewidth=2.5)
     for i, bar in enumerate(bars3):
@@ -630,7 +630,7 @@ def plot_error_vs_information(info_metrics, save_dir, dpi=600):
     mae = [m['mae'] for m in info_metrics]
     bits_per_sample = [m['total_bits']/len(data) for m in info_metrics]
 
-    # Enhanced colors for scatter points
+    # Colors for scatter points
     colors = ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D']
 
     # Creating enhanced scatter plot
@@ -640,7 +640,7 @@ def plot_error_vs_information(info_metrics, save_dir, dpi=600):
         ax.text(x+0.025, y, method, fontsize=14, fontweight='bold',
                 bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
 
-    # Enhanced plot styling
+    # Plot styling
     ax.set_title('Error vs Information transfer trade-off',
                 fontsize=22, fontweight='bold', color='#2c3e50', pad=25)
     ax.set_xlabel('Information transfer (bits per sample)',
@@ -663,12 +663,11 @@ def plot_error_vs_information(info_metrics, save_dir, dpi=600):
     ax.set_xlim(0, x_max)
     ax.set_ylim(0, y_max)
 
-    # Enhanced spines
+    # Spines
     for spine in ax.spines.values():
         spine.set_linewidth(2)
     ax.set_facecolor('#fafafa')
     
-    # Enhanced tick parameters
     ax.tick_params(axis='both', labelsize=14, width=2, length=8)
 
     plt.tight_layout()
@@ -679,7 +678,7 @@ def plot_error_vs_information(info_metrics, save_dir, dpi=600):
     plt.close()
 
 # =====================
-# 7. Information Transmission Tracking
+# 7. Information Transmission tracking
 # =====================
 def track_information_transmission(pt, methods, bits_per_sync=32):
     """
@@ -717,7 +716,7 @@ def plot_information_per_sync_event_hd(info_tracking, save_dir, dpi=600):
     
     plt.style.use('seaborn-v0_8-whitegrid')
 
-    # Creating figure with enhanced high DPI
+    # Creating figure with enhanced higher DPI
     fig, ax = plt.subplots(figsize=(20, 12), dpi=dpi)
 
     # Enhanced color palette
@@ -728,12 +727,12 @@ def plot_information_per_sync_event_hd(info_tracking, save_dir, dpi=600):
         'RL': '#C73E1D'
     }
 
-    # Enhanced dash patterns - bigger and more visible
+    # Dash patterns - bigger and more visible
     line_styles = {
-        'Adaptive Event': (0, (15, 8)),          # Long dash
-        'MPC': (0, (18, 10, 4, 10)),            # Dash-dot pattern
-        'Kalman': (0, (10, 5)),                 # Medium dash
-        'RL': (0, (25, 8, 5, 8, 5, 8))         # Complex dash pattern
+        'Adaptive Event': (0, (15, 8)),          
+        'MPC': (0, (18, 10, 4, 10)),            
+        'Kalman': (0, (10, 5)),                 
+        'RL': (0, (25, 8, 5, 8, 5, 8))         
     }
 
     # Plotting each method with enhanced styling (no markers)
@@ -741,9 +740,9 @@ def plot_information_per_sync_event_hd(info_tracking, save_dir, dpi=600):
         ax.plot(data['sync_times'], data['cumulative_bits'],
                label=name, color=colors.get(name, '#333333'),
                linestyle=line_styles.get(name, '--'),
-               linewidth=6.5, alpha=0.9, zorder=2)  # Increased line width, removed scatter plot
+               linewidth=6.5, alpha=0.9, zorder=2)  
 
-    # Enhanced title and labels
+    # Title and labels
     ax.set_title('Information transmitted at each synchronization event',
                 fontsize=28, fontweight='bold', color='#2c3e50', pad=35)
     ax.set_xlabel('Time (seconds)', fontsize=24, fontweight='bold', 
@@ -751,11 +750,11 @@ def plot_information_per_sync_event_hd(info_tracking, save_dir, dpi=600):
     ax.set_ylabel('Cumulative bits transmitted', fontsize=24, fontweight='bold', 
                  color='#2c3e50', labelpad=20)
 
-    # Enhanced grid
+    # grid
     ax.grid(True, alpha=0.4, linestyle='-', linewidth=1.5)
     ax.set_axisbelow(True)
 
-    # Enhanced legend
+    # Legend
     legend = ax.legend(loc='upper left', fontsize=18, frameon=True,
                       fancybox=True, shadow=True, framealpha=0.95,
                       edgecolor='black', facecolor='white')
@@ -772,11 +771,11 @@ def plot_information_per_sync_event_hd(info_tracking, save_dir, dpi=600):
     for spine in ax.spines.values():
         spine.set_linewidth(2.5)
 
-    # Enhanced tick parameters
+    # Tick parameters
     ax.tick_params(axis='both', which='major', labelsize=18, width=2.5, length=10)
     ax.tick_params(axis='both', which='minor', width=1.5, length=6)
 
-    # Enhanced face color
+    # Face color
     ax.set_facecolor('#f8f9fa')
 
     # Using tight layout
@@ -788,7 +787,7 @@ def plot_information_per_sync_event_hd(info_tracking, save_dir, dpi=600):
     plt.close()
 
 # =====================
-# 8. Main Execution
+# 8. Main execution
 # =====================
 if __name__ == '__main__':
     # Getting the directory where the script is located

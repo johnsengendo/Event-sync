@@ -62,7 +62,7 @@ The figure below shows the performance comparison across different synchronizati
 ![Figure 2: MAE and RMSE Comparison](Results/performance_comparison_hd.png)
 ![Figure 2: Cumulative](Results/cumulative_error_hd.png)
 ![Figure 2: information](Results/information_transmission_hd.png)
-![Figure 2: synccounts](Results/sync_counts.png)
+![Figure 2: synccounts](Results/sync_counts_hd.png)
 
 ---
 

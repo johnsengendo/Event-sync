@@ -4,7 +4,7 @@ import pandas as pd
 from filterpy.kalman import KalmanFilter
 import gymnasium as gym
 from gymnasium import spaces
-from stable_baselines3 import PPO, SAC
+from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import EvalCallback, StopTrainingOnNoModelImprovement
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
@@ -153,28 +153,45 @@ class SyncEnv(gym.Env):
         self.t += 1
         return self._obs(), reward, done, False, {}
 
-# Defining a function to train an RL model for synchronization
-def train_rl(pt, algo='PPO', timesteps=300_000):
+# Defining a function to train a PPO model for synchronization
+def train_rl(pt, timesteps=300_000):
+    """
+    Train a PPO model for synchronization tasks.
+    """
     # Creating an environment function
     def make_env():
         return Monitor(SyncEnv(pt))
+    
     # Creating a vectorized environment
     venv = VecNormalize(DummyVecEnv([make_env]), norm_obs=True, norm_reward=False)
-    # Creating an RL model
-    if algo == 'PPO':
-        model = PPO('MlpPolicy', venv, learning_rate=5e-5, n_steps=2048, batch_size=128, n_epochs=10,
-                    gamma=0.995, gae_lambda=0.9, policy_kwargs=dict(net_arch=[256,256]), verbose=1)
-    else:
-        model = SAC('MlpPolicy', venv, learning_rate=3e-4, buffer_size=100_000, batch_size=256,
-                    tau=0.005, gamma=0.99, policy_kwargs=dict(net_arch=[256,256]), verbose=1)
+    
+    # Creating PPO model
+    model = PPO(
+        'MlpPolicy', 
+        venv, 
+        learning_rate=5e-5, 
+        n_steps=2048, 
+        batch_size=128, 
+        n_epochs=10,
+        gamma=0.995, 
+        gae_lambda=0.9, 
+        policy_kwargs=dict(net_arch=[256,256]), 
+        verbose=1
+    )
+    
     # Creating an evaluation callback
-    cb = EvalCallback(venv, best_model_save_path='./best', eval_freq=10_000,
-                      callback_after_eval=StopTrainingOnNoModelImprovement(20,30))
+    cb = EvalCallback(
+        venv, 
+        best_model_save_path='./best', 
+        eval_freq=10_000,
+        callback_after_eval=StopTrainingOnNoModelImprovement(20,30)
+    )
+    
     # Training the model
     model.learn(total_timesteps=timesteps, callback=cb)
     return model, venv
 
-# Defining an RL-based synchronization method
+# Defining a PPO-based synchronization method
 def rl_event_sync(pt, drift, rl_model, venv):
     # Initializing state and synchronization indices
     state, idx = [pt[0]], []
@@ -182,7 +199,7 @@ def rl_event_sync(pt, drift, rl_model, venv):
     obs = venv.reset()
     # Iterating through the time series
     for i in range(1, len(pt)):
-        # Getting action from the RL model
+        # Getting action from the PPO model
         action, _ = rl_model.predict(obs, deterministic=True)
         # Stepping the environment
         obs, _, _, _ = venv.step(action)
@@ -232,7 +249,7 @@ def plot_comparison(results, save_dir, dpi=600):
 
     ax.set_xlabel('Synchronization method', fontsize=18, fontweight='bold')
     ax.set_ylabel('Error magnitude', fontsize=18, fontweight='bold')
-    ax.set_title('Performance comparison: MAE vs RMSE', fontsize=22, fontweight='bold')
+    ax.set_title('Performance comparison: MAE and RMSE', fontsize=22, fontweight='bold')
     ax.set_xticks(r1 + bar_width/2)
     ax.set_xticklabels(names, fontsize=16, fontweight='bold')
     ax.tick_params(axis='y', labelsize=14)
@@ -276,14 +293,14 @@ def plot_cumulative_error(pt, methods, save_dir, dpi=600):
         'Adaptive Event': '#2E86AB',
         'MPC': '#A23B72',
         'Kalman': '#F18F01',
-        'RL': '#C73E1D'
+        'RL (PPO)': '#C73E1D'
     }
 
     line_styles = {
         'Adaptive Event': (0, (12, 6)),
         'MPC': (0, (16, 8, 4, 8)),
         'Kalman': (0, (8, 4)),
-        'RL': (0, (20, 6, 4, 6, 4, 6))
+        'RL (PPO)': (0, (20, 6, 4, 6, 4, 6))
     }
 
     for name, fn in methods.items():
@@ -465,14 +482,14 @@ def plot_information_per_sync_event_hd(info_tracking, save_dir, dpi=600):
         'Adaptive Event': '#2E86AB',
         'MPC': '#A23B72',
         'Kalman': '#F18F01',
-        'RL': '#C73E1D'
+        'RL (PPO)': '#C73E1D'
     }
     # Dash patterns - bigger and more visible
     line_styles = {
         'Adaptive Event': (0, (15, 8)),
         'MPC': (0, (18, 10, 4, 10)),
         'Kalman': (0, (10, 5)),
-        'RL': (0, (25, 8, 5, 8, 5, 8))
+        'RL (PPO)': (0, (25, 8, 5, 8, 5, 8))
     }
     # Plotting each method with enhanced styling (no markers)
     for name, data in info_tracking.items():
@@ -520,15 +537,15 @@ def plot_information_per_sync_event_hd(info_tracking, save_dir, dpi=600):
 if __name__ == '__main__':
     # Getting the directory where the script is located
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    # Training RL model
-    print("We are training the RL model...")
-    ppo_model, ppo_env = train_rl(data, algo='PPO', timesteps=300_000)
+    # Training PPO model
+    print("We are training the PPO model...")
+    ppo_model, ppo_env = train_rl(data, timesteps=300_000)
     # Defining synchronization methods to evaluate
     methods = {
         'Adaptive Event': lambda: adaptive_event_sync(data, 2, 0.05),
         'MPC': lambda: mpc_sync(data, 0.05, 5, 3),
         'Kalman': lambda: kalman_sync(data, 0.1, 1),
-        'RL': lambda: rl_event_sync(data, 0.05, ppo_model, ppo_env)
+        'RL (PPO)': lambda: rl_event_sync(data, 0.05, ppo_model, ppo_env)
     }
     # Tracking information transmission
     print("We are tracking information transmission...")
